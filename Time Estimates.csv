@@ -1,0 +1,12 @@
+Story,Task,Estimate min (hr),Estimate max (hr),Actual,Comment
+1. As a project manager I want initial project setup and planning completed so development can begin efficiently,1.1 Project setup and planning,4,6,,"First commit with time estimates and repository setup README creation.
+Includes quick data exploration, architecture design and model and framework selection"
+2. As a user I want to access my order information so I can track my purchases,2.1 Mock API integration,1,2,,"Setting up order data retrieval API, making sure it functions properly"
+,2.2 Order query handling implementation,6,8,,"Setting up the chatbot with order query functionality, running 5 test questions."
+3. As a user I want to query product information so I can find items I'm interested in,3.1 Product dataset preprocessing,4,6,,Cleaning indexing and optimizing for search
+,3.2 RAG system implementation for products,8,12,,Vector store setup embedding generation
+,3.3 Product query response generation,6,10,,Implementing context-aware responses
+4. As a developer I want to host the chatbot on a cloud-based interface for interactive testing,4.1 Hosting backend code,1,3,,Host the backend server as REST API endpoints
+5. As a user I want a simple interface to interact with the chatbot,5.1 Basic UI implementation,2,4,,User-friendly chat interface
+6. As a developer I want to compare different models for optimal performance,6.1 Model comparison testing,2,4,,"Testing different LLMs for accuracy, cost and latency"
+,6.2 Cost-benefit analysis,2,4,,Documenting trade-offs
