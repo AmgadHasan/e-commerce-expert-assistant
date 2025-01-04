@@ -48,13 +48,24 @@ This chatbot serves as an intelligent e-commerce assistant capable of:
 
 ## Technical Implementation
 
+### Architecture
+[Work in progress]
+The core part of the project is implemented as a backend API server that handles the user chat.
+It consists of the following components:
+- LLM for interacting with the user
+- Order Data API
+- Product Data Index
+- Embedding Model for semantic search
+- Vector DB to store, search and retrieve vector embeddings
+
+![alt text](assets/architecture.png)
 ### Requirements
 - Python 3.8+
 - Preferred: UV for dependency management
 
 ### Installation
 
-1. Clone the repository:
+1. Clone the repository
 
 
 2. Create and activate a virtual environment:
@@ -69,15 +80,14 @@ TBD
 
 ## Project Structure
 
-Work in progress
 ```
 e-commerce-expert-assistant/
 ├── data/
 │   ├── products.csv
 │   └── orders.csv
-│
-│
-│
+├── src/
+├── Dockerfile
+├── Time Estimates.csv
 └── README.md
 ```
 
@@ -92,5 +102,5 @@ TBD
 
 
 ## Contact
-LinkedIN:
+LinkedIn:<br>
 https://www.linkedin.com/in/amgad-hasan/
