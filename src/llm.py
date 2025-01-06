@@ -1,12 +1,12 @@
 import os
-
-from openai import OpenAI
+from langfuse.openai import openai
 
 from src.prompts import (
     ORDER_SYSTEM_MESSAGE,
 )
 from src.tools import order_dataset_tools, order_function_map, DirectReturnException
 from src.utils import create_logger, handle_function_calls, log_execution_time
+import src.models as models
 
 TEMPERATURE = 0
 MAX_COMPLETION_TOKENS = 2048
@@ -18,7 +18,7 @@ if not model:
     logger.error("CHAT_MODEL environment variable is not set.")
     raise ValueError("CHAT_MODEL environment variable is not set.")
 
-client = OpenAI()
+client = openai.OpenAI()
 
 
 # def prepare_context(relevant_chunks: list[str]) -> str:
@@ -34,7 +34,7 @@ client = OpenAI()
 
 
 @log_execution_time(logger=logger)
-def handle_user_chat(messages: list[dict]) -> dict:
+def handle_user_chat(thread: models.Thread) -> models.Message:
     """
     Generate responses for a given user query.
 
@@ -45,22 +45,22 @@ def handle_user_chat(messages: list[dict]) -> dict:
     Returns:
         list[str]: A list of questions about the topic based on the provided context.
     """
-    input_messages = messages
+    input_messages = thread.messages
     try:
         while True:
-            print(f"Inside loop{messages[-1]}")
-            response = create_completion(messages=messages)
-            messages.append(response)
+            print(f"Inside loop{thread.messages[-1]}")
+            response = create_completion(thread=thread)
+            thread.messages.append(response)
             print(response)
             if not response.tool_calls:
                 print("No tool call")
                 break
-            messages = handle_function_calls(
+            thread.messages = handle_function_calls(
                 function_map=order_function_map,
                 response_message=response,
-                messages=messages,
+                messages=thread.messages,
             )
-        return {"role": response.role, "content": response.content}
+        return models.Message(**{"role": response.role, "content": response.content})
     except DirectReturnException as e:
         logger.info(
             f"LLM returned flow to the user: {e.message}"
@@ -75,19 +75,20 @@ def handle_user_chat(messages: list[dict]) -> dict:
 
 @log_execution_time(logger=logger)
 def create_completion(
-    messages: list[dict], system_message: str = ORDER_SYSTEM_MESSAGE
+    thread: models.Thread, system_message: str = ORDER_SYSTEM_MESSAGE
 ):
     try:
-        logger.info(f" create_completition |{messages = }\n\n{system_message = }")
+        logger.info(f" create_completition |{thread.messages = }\n\n{system_message = }")
         completion = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": system_message},
-                *messages,
+                *thread.messages,
             ],
             model=model,
             temperature=TEMPERATURE,
             max_tokens=MAX_COMPLETION_TOKENS,
             tools=order_dataset_tools,
+            session_id=thread.id
         )
         logger.info(f" create_completition | {completion = }")
         # if completion.choices is None:
@@ -95,5 +96,5 @@ def create_completion(
         response = completion.choices[0].message
         return response
     except Exception as e:
-        logger.error(f" create_completition | Error generating responses for chat '{messages}': {e}")
+        logger.error(f" create_completition | Error generating responses for chat '{thread.messages}': {e}")
         raise

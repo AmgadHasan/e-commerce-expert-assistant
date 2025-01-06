@@ -1,8 +1,10 @@
 import json
 import logging
+import os
 import time
+from pathlib import Path
 
-from openai.types.chat import ChatCompletionMessage
+import src.models as models
 
 
 class DirectReturnException(Exception):
@@ -17,29 +19,31 @@ class DirectReturnException(Exception):
 
 
 def handle_function_calls(
-    function_map: dict, response_message: ChatCompletionMessage, messages: list[dict]
-):
+    function_map: dict, response_message, messages: list[models.Message]
+) -> list[models.Message | dict]:
+    if not response_message.tool_calls:
+        raise
     for tool_call in response_message.tool_calls:
         function_name = tool_call.function.name
         if function_name in function_map:
             function_args = json.loads(tool_call.function.arguments)
             print(f"Function arguments: {function_args}")
 
-            # Call the function using the mapping
             function_to_call = function_map[function_name]
-            response = function_to_call(**function_args)
+            function_response = function_to_call(**function_args)
 
             messages.append(
                 {
                     "tool_call_id": tool_call.id,
                     "role": "tool",
                     "name": function_name,
-                    "content": str(response),
+                    "content": str(function_response),
                 }
             )
             return messages
         else:
             print(f"Function {function_name} not found.")
+            raise
 
 
 def create_logger(logger_name, log_file, log_level):
@@ -77,3 +81,30 @@ def log_execution_time(logger):
         return wrapper
 
     return decorator
+
+
+def load_env_file(env_file_path: Path):
+    """
+    Load environment variables from a .env file and add them to os.environ.
+
+    :param env_file_path: Path to the .env file
+    :type env_file_path: str
+    """
+    try:
+        with open(env_file_path, "r") as env_file:
+            for line in env_file:
+                # Strip whitespace and ignore empty lines and comments
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+
+                # Split the line into key and value
+                if "=" in line:
+                    key, value = line.split("=", 1)
+                    key = key.strip()
+                    value = value.strip().strip('"').strip("'")
+                    os.environ[key] = value
+    except FileNotFoundError:
+        print(f"Error: The file at {env_file_path} was not found.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
