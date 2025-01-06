@@ -1,7 +1,7 @@
 Story,Task,Estimate min (hr),Estimate max (hr),Actual,Comment
 1. As a project manager I want initial project setup and planning completed so development can begin efficiently,1.1 Project setup and planning,4,6,4,"First commit with time estimates and repository setup README creation.
 Includes quick data exploration, architecture design and model and framework selection"
-2. As a user I want to access my order information so I can track my purchases,2.1 Mock API integration,1,2,,"Setting up order data retrieval API, making sure it functions properly"
+2. As a user I want to access my order information so I can track my purchases,2.1 Mock API integration,1,2,1,"Setting up order data retrieval API, making sure it functions properly"
 ,2.2 Order query handling implementation,6,8,,"Setting up the chatbot with order query functionality, running 5 test questions."
 3. As a user I want to query product information so I can find items I'm interested in,3.1 Product dataset preprocessing,4,6,,Cleaning indexing and optimizing for search
 ,3.2 RAG system implementation for products,8,12,,Vector store setup embedding generation
