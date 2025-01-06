@@ -1,4 +1,13 @@
+
 import src.mock_api as mock_api
+from src.utils import DirectReturnException
+
+
+def get_customer_id():
+    data = {"role": "assistant", "content": "Please provider your Customer ID"}
+    raise DirectReturnException(message=data)
+
+
 order_dataset_tools = [
     {
         "type": "function",
@@ -146,7 +155,7 @@ order_dataset_tools = [
                     "customer_id": {
                         "type": "integer",
                         "description": "The ID of the customer whose data needs to be retrieved. Must be an integer",
-                    },                    
+                    },
                 },
                 "required": ["customer_id"],
                 "additionalProperties": False,
@@ -166,6 +175,19 @@ order_dataset_tools = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_customer_id",
+            "description": 'Obtains the Customer ID by asking the user "Please provide your Customer ID"',
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+                "additionalProperties": False,
+            },
+        },
+    },
 ]
 
 order_function_map = {
@@ -177,4 +199,5 @@ order_function_map = {
     "get_high_profit_products": mock_api.get_high_profit_products,
     "get_shipping_cost_summary": mock_api.get_shipping_cost_summary,
     "get_profit_by_gender": mock_api.get_profit_by_gender,
+    "get_customer_id": get_customer_id,
 }

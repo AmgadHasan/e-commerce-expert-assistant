@@ -5,7 +5,7 @@ from openai import OpenAI
 from src.prompts import (
     ORDER_SYSTEM_MESSAGE,
 )
-from src.tools import order_dataset_tools, order_function_map
+from src.tools import order_dataset_tools, order_function_map, DirectReturnException
 from src.utils import create_logger, handle_function_calls, log_execution_time
 
 TEMPERATURE = 0
@@ -49,7 +49,7 @@ def handle_user_chat(messages: list[dict]) -> dict:
     try:
         while True:
             print(f"Inside loop{messages[-1]}")
-            response = create_completition(messages=messages)
+            response = create_completion(messages=messages)
             messages.append(response)
             print(response)
             if not response.tool_calls:
@@ -61,6 +61,11 @@ def handle_user_chat(messages: list[dict]) -> dict:
                 messages=messages,
             )
         return {"role": response.role, "content": response.content}
+    except DirectReturnException as e:
+        logger.info(
+            f"LLM returned flow to the user: {e.message}"
+        )
+        raise
     except Exception as e:
         logger.error(
             f"Error generating responses for chat:\n'{input_messages}'\n\nError:\n{e}"
@@ -69,10 +74,11 @@ def handle_user_chat(messages: list[dict]) -> dict:
 
 
 @log_execution_time(logger=logger)
-def create_completition(
+def create_completion(
     messages: list[dict], system_message: str = ORDER_SYSTEM_MESSAGE
 ):
     try:
+        logger.info(f" create_completition |{messages = }\n\n{system_message = }")
         completion = client.chat.completions.create(
             messages=[
                 {"role": "system", "content": system_message},
@@ -83,10 +89,11 @@ def create_completition(
             max_tokens=MAX_COMPLETION_TOKENS,
             tools=order_dataset_tools,
         )
-        print(f"{completion = }")
+        logger.info(f" create_completition | {completion = }")
+        # if completion.choices is None:
+        #     completion = create_completion(messages=messages+[{"role": ,"content": }])
         response = completion.choices[0].message
-        print(f"Inside create completitions: {messages[-1]}\n\n\n{response}")
         return response
     except Exception as e:
-        logger.error(f"Error generating responses for chat '{messages}': {e}")
+        logger.error(f" create_completition | Error generating responses for chat '{messages}': {e}")
         raise

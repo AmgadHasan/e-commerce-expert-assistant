@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, validator
 
 from src.llm import handle_user_chat
-from src.utils import create_logger
+from src.utils import create_logger, DirectReturnException
 
 logger = create_logger(logger_name="main", log_file="api.log", log_level="info")
 
@@ -70,6 +70,8 @@ async def create_chat(chat: Chat) -> Message:
         # Call the function to handle chat interaction
         response = handle_user_chat(messages=chat.messages)
         return Message(**response)
+    except DirectReturnException as e:
+        return Message(**e.message)
     except Exception:
         # Log the traceback and raise an HTTP exception if an error occurs
         logger.error(traceback.format_exc())
