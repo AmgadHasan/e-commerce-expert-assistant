@@ -6,6 +6,16 @@ from pathlib import Path
 
 import src.models as models
 
+import sqlite3
+from contextlib import closing
+
+
+def query_product_database(sql_query: str, db_url: str = "data/products_information_old.db"):
+    with closing(sqlite3.connect(f'file:{db_url}?mode=ro', uri=True)) as connection:
+        connection.row_factory = lambda cursor, row: {col[0]: row[i] for i, col in enumerate(cursor.description)}
+        with closing(connection.cursor()) as cursor:
+            rows = cursor.execute(sql_query).fetchall()            
+    return rows
 
 class DirectReturnException(Exception):
     def __init__(self, message: str | dict):
@@ -19,8 +29,8 @@ class DirectReturnException(Exception):
 
 
 def handle_function_calls(
-    function_map: dict, response_message, messages: list[models.Message]
-) -> list[models.Message | dict]:
+    function_map: dict, response_message, messages: list[models.Message | dict]
+) -> list[models.Message | dict] | None:
     if not response_message.tool_calls:
         raise
     for tool_call in response_message.tool_calls:

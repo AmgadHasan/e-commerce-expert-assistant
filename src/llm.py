@@ -4,7 +4,7 @@ from langfuse.openai import openai
 from src.prompts import (
     ORDER_SYSTEM_MESSAGE,
 )
-from src.tools import order_dataset_tools, order_function_map, DirectReturnException
+from src.tools import order_dataset_tools, product_dataset_tools, llm_tools_map, DirectReturnException#, query_router_tools
 from src.utils import create_logger, handle_function_calls, log_execution_time
 import src.models as models
 
@@ -33,6 +33,7 @@ client = openai.OpenAI()
 #     return "\n".join(relevant_chunks)
 
 
+
 @log_execution_time(logger=logger)
 def handle_user_chat(thread: models.Thread) -> models.Message:
     """
@@ -49,14 +50,15 @@ def handle_user_chat(thread: models.Thread) -> models.Message:
     try:
         while True:
             print(f"Inside loop{thread.messages[-1]}")
-            response = create_completion(thread=thread)
+            # response = create_completion(thread=thread, tools=query_router_tools)
+            response = create_completion(thread=thread, tools=order_dataset_tools+product_dataset_tools)
             thread.messages.append(response)
             print(response)
             if not response.tool_calls:
                 print("No tool call")
                 break
             thread.messages = handle_function_calls(
-                function_map=order_function_map,
+                function_map=llm_tools_map,
                 response_message=response,
                 messages=thread.messages,
             )
@@ -75,7 +77,7 @@ def handle_user_chat(thread: models.Thread) -> models.Message:
 
 @log_execution_time(logger=logger)
 def create_completion(
-    thread: models.Thread, system_message: str = ORDER_SYSTEM_MESSAGE
+    thread: models.Thread, system_message: str = ORDER_SYSTEM_MESSAGE, tools=order_dataset_tools
 ):
     try:
         logger.info(f" create_completition |{thread.messages = }\n\n{system_message = }")
@@ -87,7 +89,7 @@ def create_completion(
             model=model,
             temperature=TEMPERATURE,
             max_tokens=MAX_COMPLETION_TOKENS,
-            tools=order_dataset_tools,
+            tools=tools,
             session_id=thread.id
         )
         logger.info(f" create_completition | {completion = }")
