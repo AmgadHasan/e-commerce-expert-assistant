@@ -1,16 +1,14 @@
 from enum import Enum
+from typing import Literal
 
 import polars as pl
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
-from typing import Literal
 
 # Load dataset with Polars
 DATASET_PATH = "data/Order_Data_Dataset.csv"
-df = pl.read_csv(DATASET_PATH)
 
-
-# Data Models
+# Define data models for Product_Category and Order_Priorirty fields to allow only valid values
 class ProductCategory(str, Enum):
     home_furniture = "Home & Furniture"
     auto_accessories = "Auto & Accessories"
@@ -26,9 +24,9 @@ class OrderPriority(str, Enum):
     low = "Low"
 
 
-# Clean data (e.g., handle NaN values) at the start
-# Decide for each data type what a sensible default would be
-# For strings, empty. For numbers, 0, where applicable.
+df = pl.read_csv(DATASET_PATH)
+# These columns aren't needed by the user.
+df = df.drop(["Gender", "Device_Type", "Customer_Login_type", "Profit"])
 df = df.fill_null("")
 
 # Initialize FastAPI app
@@ -69,7 +67,7 @@ def get_product_category_data(category: ProductCategory) -> list[dict]:
 
 @app.get("/data/order-priority/{priority}")
 def get_orders_by_priority(
-    priority: Literal["Medium", "High", "", "Critical", "Low"] ,#OrderPriority,
+    priority: Literal["Medium", "High", "", "Critical", "Low"],  # OrderPriority,
     sort_by_date: bool | None = None,
     sort_descendingly: bool = False,
     limit: int | None = Query(None, ge=1),
