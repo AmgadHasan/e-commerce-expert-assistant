@@ -6,7 +6,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 # Load dataset with Polars
-DATASET_PATH = "data/Order_Data_Dataset.csv"
+DATASET_PATH = "data/order_data.parquet"
 
 # Define data models for Product_Category and Order_Priorirty fields to allow only valid values
 class ProductCategory(str, Enum):
@@ -24,7 +24,7 @@ class OrderPriority(str, Enum):
     low = "Low"
 
 
-df = pl.read_csv(DATASET_PATH)
+df = pl.read_parquet(DATASET_PATH)
 # These columns aren't needed by the user.
 df = df.drop(["Gender", "Device_Type", "Customer_Login_type", "Profit"])
 df = df.fill_null("")
