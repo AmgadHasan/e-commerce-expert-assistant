@@ -15,9 +15,8 @@ logger = create_logger(logger_name="main", log_file="api.log", log_level="info")
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-origins = [
-    "*"
-]
+# CORS settings to allow all origins
+origins = ["*"]
 
 
 app.add_middleware(
@@ -40,18 +39,17 @@ async def root() -> dict:
 
     Returns:
         dict: A dictionary containing a welcome message.
+        dict: Dictionary containing a welcome message.
     """
     logger.info("Root endpoint accessed")
     return {"message": "Hello World"}
 
-
 @app.post("/chat")
 async def create_chat(thread: models.Thread) -> models.Thread:
     """
-    Process chat thread in a conversation.
+    Handle chat interactions by processing the conversation thread.
 
-    The chat conversation consists of alternating messages with roles that start
-    with a 'user' role followed by an 'assistant' role, and is enforced through validation.
+    The conversation should consist of messages alternating between 'user' and 'assistant' roles, starting with 'user'.
 
     Args:
         thread (Thread): An object containing a list of messages in the chat.
@@ -62,13 +60,12 @@ async def create_chat(thread: models.Thread) -> models.Thread:
         Thread: The updated thread with the assistant's response appended.
 
     Raises:
-        HTTPException: If an error occurs during chat processing, an HTTP 500 error is raised
-                       with details about the failure.
+        HTTPException: Raised if an error occurs during chat processing.
     """
     logger.info("Chat endpoint accessed with thread: %s", thread)
     response = deepcopy(thread)
     try:
-        # Call the function to handle chat interaction
+        # Process chat interaction
         assistant_response = handle_user_chat(thread=thread)
         response.messages.append(assistant_response)
         logger.info("Assistant response generated: %s", assistant_response)
@@ -83,13 +80,23 @@ async def create_chat(thread: models.Thread) -> models.Thread:
         raise HTTPException(
             status_code=500, detail=f"Error generating response for chat: {str(thread)}"
         )
+        raise HTTPException(status_code=500, detail=f"Error generating response for chat: {str(thread)}")
 
 @app.get("/chat-ui", response_class=HTMLResponse)
-async def chat_ui(request: Request):
+async def chat_ui(request: Request) -> HTMLResponse:
+    """
+    Render the chat UI in HTML format.
+
+    Args:
+        request (Request): The request object carrying HTTP metadata.
+
+    Returns:
+        HTMLResponse: The rendered HTML template for chat interface.
+    """
     return templates.TemplateResponse("chat.html", {"request": request, "messages": []})
 
 @app.post("/chat-ui", response_class=HTMLResponse)
-async def chat_ui_post(request: Request):
+async def chat_ui_post(request: Request) -> HTMLResponse:
     form_data = await request.form()
     user_message = form_data.get("message")
     if not user_message:
@@ -101,6 +108,5 @@ async def chat_ui_post(request: Request):
     response = await create_chat(thread)
     return templates.TemplateResponse("chat.html", {"request": request, "messages": response.messages})
 
-
-# Log that the app is starting
+# Log application startup
 logger.info("Starting the application")

@@ -11,6 +11,12 @@ logger = create_logger(logger_name="vectorstore", log_file="api.log", log_level=
 
 
 def get_qdrant_client() -> QdrantClient:
+    """
+    Initialize and return a Qdrant client using provided configuration from environment variables.
+
+    Returns:
+        QdrantClient: An instance of QdrantClient connected to the specified Qdrant server.
+    """
     QDRANT_URL = os.environ.get(
         "QDRANT_URL",
         "https://a15c0e2e-c3d5-4404-add5-4042e47fbb25.europe-west3-0.gcp.cloud.qdrant.io:6333",
@@ -21,6 +27,16 @@ def get_qdrant_client() -> QdrantClient:
 
 @log_execution_time(logger=logger)
 def retrieve_relevant_products(query: str) -> list[dict]:
+    """
+    Retrieve the most relevant products to a given query using Qdrant vector search
+    and then fetch additional details from the product database.
+
+    Args:
+        query (str): The search query for which relevant products are to be retrieved.
+
+    Returns:
+        list[dict]: A list of dictionaries containing detailed information of relevant products.
+    """
     vectorstore_client = get_qdrant_client()
     try:
         query_embeddings = embed_query(query=query)
@@ -32,64 +48,27 @@ def retrieve_relevant_products(query: str) -> list[dict]:
         ).points
         logger.debug(f"{search_result=}")
         asins = [point.payload["parent_asin"] for point in search_result]
-        print(asins)
         logger.info(f"Retrieved {len(asins)} relevant chunks.")
         if not asins:
             logger.info("No relevant ASINs found.")
             return []
 
-        # Use parameterized query to prevent SQL injection
+        # Fetch product details from the database using the retrieved ASINs
         retrieved_chunks = query_product_database(
-            sql_query= f"""SELECT * FROM products WHERE parent_asin IN {tuple(asins)}"""
+            sql_query=f"SELECT * FROM products WHERE parent_asin IN {tuple(asins)}"
         )
-        ## Note
-        # This code is used due to the sever rate limits in the LLM providers that we're using.
-        # Remove this when switching to a production LLM service
-        # Start
+
+        # Throttle LLM request rate (remove this in production)
+        ## Begin
         import time
+
         time.sleep(62)
         retrieved_chunks = retrieved_chunks[:3]
-        # End
-        
+        ## End
+
         return retrieved_chunks
     except Exception as e:
         logger.exception(f"Failed to retrieve relevant context: {e}")
         raise
     finally:
         vectorstore_client.close()
-
-# def get_qdrant_client() -> QdrantClient:
-# QDRANT_URL = os.environ.get(
-#     "QDRANT_URL",
-#     "https://a15c0e2e-c3d5-4404-add5-4042e47fbb25.europe-west3-0.gcp.cloud.qdrant.io:6333",
-# )
-# client = QdrantClient(url=QDRANT_URL, api_key=os.environ.get("QDRANT_API_KEY"))
-#     try:
-#         yield client
-#     finally:
-#         client.close()
-
-
-# @log_execution_time(logger=logger)
-# def retrieve_relevant_products(
-#     query: str, client: QdrantClient
-# ) -> list[str]:
-#     try:
-#         query_embeddings = embed_query(query=query)
-#         search_result = client.query_points(
-#             collection_name=COLLECTION_NAME,
-#             query=query_embeddings,
-#             with_payload=True,
-#             limit=10,
-#         ).points
-#         logger.debug(f"{search_result=}")
-#         asins = [point.payload["parent_asin"] for point in search_result]
-#         print(asins)
-#         logger.info(f"Retrieved {len(asins)} relevant chunks.")
-#         retrieved_chunks = query_product_database(
-#             f"""SELECT * FROM products WHERE parent_asin IN {tuple(asins)}"""
-#         )
-#         return retrieved_chunks
-#     except Exception as e:
-#         logger.exception(f"failed to retrieve relecant context: {e}")
-#         raise

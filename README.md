@@ -1,13 +1,13 @@
 E-Commerce Expert Assistant Chatbot
 =====================================
 
-### Overview
+## Overview
 
 This project is a smart e-commerce assistant chatbot that utilizes Retrieval-Augmented Generation (RAG) to provide accurate responses to customer queries about product details and order information. The chatbot integrates with product and order datasets to deliver contextually relevant answers.
 
-### Features
+## Features
 
-#### Core Functionality
+### Core Functionality
 
 *   Product information retrieval and recommendations
 *   Order history and status tracking
@@ -15,16 +15,17 @@ This project is a smart e-commerce assistant chatbot that utilizes Retrieval-Aug
 *   Cost-efficient model implementation
 *   Mock API integration for order data
 
-#### Bonus Features
+### Bonus Features
 
 *   Cloud-based hosting interface
 *   [Basic UI for testing](#local-ui)
-*   Model comparison analysis (closed vs open-source)
+*   [Model comparison analysis](#model-selection-and-trade-offs)
 *   [LLM Observability and monitoring](#observability)
+*   [Locally hosting embedding model](#local-embedding)
 
-### Dataset Information
+## Dataset Information
 
-#### Product Dataset
+### Product Dataset
 
 *   5000 rows of musical instrument data
 *   Fields include:
@@ -35,7 +36,7 @@ This project is a smart e-commerce assistant chatbot that utilizes Retrieval-Aug
     *   Price
     *   Categories
 
-#### Order Dataset
+### Order Dataset
 
 *   Customer order history
 *   Fields include:
@@ -46,9 +47,9 @@ This project is a smart e-commerce assistant chatbot that utilizes Retrieval-Aug
     *   Shipping cost
     *   Payment method
 
-### Technical Implementation
+## Technical Implementation
 
-#### Architecture
+### Architecture
 
 The core part of the project is implemented as a backend API server that handles user chat. It consists of the following components:
 
@@ -57,15 +58,16 @@ The core part of the project is implemented as a backend API server that handles
 *   Product Data Index
 *   Embedding Model for semantic search
 *   Vector DB to store, search, and retrieve vector embeddings
-
-#### Requirements
+This is illustrated in the following diagram:
+![alt text](assets/arch-v01.png)
+### Requirements
 
 *   Python 3.8+
 *   Preferred: UV for dependency management
 
-### Usage
+## Usage
 
-#### Environment Variables
+### Environment Variables
 
 Make sure to set up your `.env` file with the following fields:
 ```makefile
@@ -83,7 +85,7 @@ LANGFUSE_PUBLIC_KEY=
 LANGFUSE_HOST=https://cloud.langfuse.com
 ```
 
-#### Docker
+### Docker
 
 The best way to use the published Docker [images](https://github.com/AmgadHasan/e-commerce-expert-assistant/pkgs/container/e-commerce-expert-assistant).
 
@@ -93,7 +95,7 @@ docker pull ghcr.io/amgadhasan/e-commerce-expert-assistant:main
 docker run -d --env-file.env -p 3000:8000 ghcr.io/amgadhasan/e-commerce-expert-assistant:main
 ```
 
-#### Local UI
+### Local UI
 
 To chat with the LLM using a GUI locally, run the `ui.html` file in a browser.
 
@@ -104,7 +106,7 @@ Make sure to modify the API URL before running it:
 const API_URL = 'http://20.121.120.6:3000/chat'
 ```
 
-### Development
+## Development
 
 1. Clone the repository:
 ```bash
@@ -130,7 +132,7 @@ e-commerce-expert-assistant/
 └── README.md
 ```
 
-### Model Selection and Trade-offs
+## Model Selection and Trade-offs
 
 We experimented with the following models:
 
@@ -158,18 +160,42 @@ We experimented with the following models:
 *   Had better rate limits than Sambanova and could respond to RAG queries but would error out sometimes when making frequent calls.
 *   A good compromise between accuracy, speed, and rate limits out of the tested models.
 
-### Future Work
-
-*   Try out Qwen-2.5-32B and LLama3.1-8B with more generous rate limits.
-*   Test Mistral Large 3 to see what the best open models can do on this task.
-
-### Observability
+## Observability
 
 We implement LLM Observability and Monitoring using Langfuse.
 
 ![alt text](assets/dashboard.png)
 
 [Session Demo](assets/langfuse-traces.webm)
+
+## Local Embedding
+Once the documents have been embedded and stored in the vectordb, we make embedding requests at inference with much smaller batch sizes. This allows us to self-host the embedding model locally, even on CPU, with acceptable latency.
+This can be done easily with docker compose. The attached `docker-compose.yml` can be used to start an embedding service locally and connect it to the backend API server.
+Make sure you set up the environment variables correcty before starting the docker compose services.
+Importantly, for local embedding:
+```
+EMBEDDING_URL=http://embedding_service:80/v1
+```
+
+## Future Work
+### Architecture
+
+The current implementation send all the tools and queries at the same time in one request to the LLM.
+This has the following downsides:
+1. The input context length is high as these tools have long descriptions.
+2. This can overwhelm the model when making decisions.
+
+We can experiment with implementing a query routing piece and 2 seprate agents: one for the products queries, and another one for the queries about order history. The query routing piece willr receive the query from the user and route it to the proper agent. The agent will have a more tailored prompt for its domain and will have a much shorter context which makes the per-call cost and latency lower and potentially improving accuracy. The downsides of this proposed approach:
+1. More calls to the LLM may result in longer end-to-end latency as now we have a sequential dependency.
+2. The logic and the code will be more complicated as we will have 3 separate entities with their own prompts, tools and workflows.
+
+This approach was avoided in version 1 to keep the implementation simple and allow quick iteration
+
+![alt text](assets/arch-v02.png)
+
+### Models
+*   Try out Qwen-2.5-32B and LLama3.1-8B with more generous rate limits.
+*   Test Mistral Large 3 to see what the best open models can do on this task.
 
 ### Sample Interactions
 
@@ -221,6 +247,8 @@ Note: This is the correct answer as this customer doesn't have any cell phone or
 ![alt text](assets/image-7.png)
 
 ![alt text](assets/image-8.png)
+![alt text](assets/image-9.png)
+![alt text](assets/image-10.png)
 
 ### Contact
 

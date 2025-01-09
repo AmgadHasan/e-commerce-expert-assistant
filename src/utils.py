@@ -1,23 +1,38 @@
 import json
 import logging
 import os
+import sqlite3
 import time
+from contextlib import closing
 from pathlib import Path
 
 import src.models as models
 
-import sqlite3
-from contextlib import closing
 
+def query_product_database(
+    sql_query: str, db_url: str = "data/products_information.db"
+) -> list[dict]:
+    """
+    Execute a read-only SQL query on the product database and return the results.
 
-def query_product_database(sql_query: str, db_url: str = "data/products_information.db"):
-    with closing(sqlite3.connect(f'file:{db_url}?mode=ro', uri=True)) as connection:
-        connection.row_factory = lambda cursor, row: {col[0]: row[i] for i, col in enumerate(cursor.description)}
+    :param sql_query: SQL query string to execute.
+    :param db_url: URL to the database file, defaults to "data/products_information.db".
+    :return: List of rows as dictionaries.
+    """
+    with closing(sqlite3.connect(f"file:{db_url}?mode=ro", uri=True)) as connection:
+        connection.row_factory = lambda cursor, row: {
+            col[0]: row[i] for i, col in enumerate(cursor.description)
+        }
         with closing(connection.cursor()) as cursor:
-            rows = cursor.execute(sql_query).fetchall()            
+            rows = cursor.execute(sql_query).fetchall()
     return rows
 
+
 class DirectReturnException(Exception):
+    """
+    Exception to be raised when an immediate return is necessary.
+    """
+
     def __init__(self, message: str | dict):
         self.message = message
 
@@ -31,8 +46,18 @@ class DirectReturnException(Exception):
 def handle_function_calls(
     function_map: dict, response_message, messages: list[models.Message | dict]
 ) -> list[models.Message | dict] | None:
+    """
+    Handle function tool calls and map them to actual function executions.
+
+    :param function_map: A dictionary mapping function names to function objects.
+    :param response_message: The message containing tool call information.
+    :param messages: List to append results of function calls.
+    :return: Updated list of messages.
+    :raises: Exception if no tool calls are present or if function mapping is not found.
+    """
     if not response_message.tool_calls:
-        raise
+        raise ValueError("No tool calls found in the response message.")
+
     for tool_call in response_message.tool_calls:
         function_name = tool_call.function.name
         if function_name in function_map:
@@ -58,10 +83,18 @@ def handle_function_calls(
             return messages
         else:
             print(f"Function {function_name} not found.")
-            raise
+            raise KeyError(f"Function {function_name} not found in function map.")
 
 
-def create_logger(logger_name, log_file, log_level):
+def create_logger(logger_name: str, log_file: str, log_level: str) -> logging.Logger:
+    """
+    Create and configure a logger with specified name, log file, and log level.
+
+    :param logger_name: Name of the logger.
+    :param log_file: Path to the log file.
+    :param log_level: Logging level as a string (e.g., 'INFO', 'DEBUG').
+    :return: Configured logger object.
+    """
     LOG_FORMAT = "[%(asctime)s | %(name)s | %(levelname)s | %(message)s]"
     log_level = getattr(logging, log_level.upper())
 
@@ -81,8 +114,13 @@ def create_logger(logger_name, log_file, log_level):
     return logger
 
 
-def log_execution_time(logger):
-    """Decorator factory to log the execution time of a function using a specified logger."""
+def log_execution_time(logger: logging.Logger):
+    """
+    Decorator factory to log the execution time of a function using a specified logger.
+
+    :param logger: Logger object to use for logging.
+    :return: Decorator that logs execution time.
+    """
 
     def decorator(func):
         def wrapper(*args, **kwargs):

@@ -8,6 +8,7 @@ from qdrant_client import QdrantClient, models
 from qdrant_client.models import Distance, VectorParams
 
 from src.utils import create_logger, log_execution_time
+from src.emb import embed_chunks
 
 COLLECTION_NAME = "products_information_02"
 
@@ -20,51 +21,66 @@ def ingest_dataset(
     dataset_file: Path, client: QdrantClient, embedding_dimension: int
 ) -> None:
     """
-    Ingest a PDF document into Qdrant by creating a collection, splitting the document,
-    embedding the text chunks, and upserting them into the collection.
+    Ingest a dataset parquet file into Qdrant by creating a collection, embedding text into vectors,
+    and upserting them into the collection.
 
     Args:
-        dataset_file (Path): The path to the dataset file.
-        embedding_dimension (int): The dimension of the embedding vectors.
+        dataset_file (Path): Path to the dataset parquet file.
+        client (QdrantClient): Instance of the QdrantClient to interact with the vectordb.
+        embedding_dimension (int): Dimensionality of the embedding vectors.
     """
     if client.collection_exists(collection_name=COLLECTION_NAME):
-        logger.info("Collection already exists! Skipping embedding and insertion")
+        logger.info("Collection already exists! Skipping embedding and insertion.")
         return
+
+    # Create a new collection within Qdrant
     client.create_collection(
         collection_name=COLLECTION_NAME,
         vectors_config=VectorParams(size=embedding_dimension, distance=Distance.DOT),
     )
-    df_all = pl.read_csv(dataset_file).with_row_index("id")
-    for i in range(0, df_all.shape[0], 64):
-        df = df_all[i : i + 64]
-        chunks = (df["features"] + df["title"]).to_list()
-        vectors = embed_texts(texts=chunks)
+
+    # Read data from the parquet and prepare for processing
+    dataset = pl.read_parquet(dataset_file).with_row_index("id")
+    for i in range(0, dataset.shape[0], 64):
+        batch_df = dataset[i : i + 64]
+        text_chunks = (batch_df["features"] + batch_df["title"]).to_list()
+        embedding_vectors = embed_chunks(chunks=text_chunks)
+
+        # Attempt to upsert vectors into the Qdrant collection
         try:
             client.upsert(
                 collection_name=COLLECTION_NAME,
                 points=models.Batch(
-                    ids=df["id"].to_list(),
+                    ids=batch_df["id"].to_list(),
                     payloads=[
                         {"parent_asin": parent_asin, "title": title}
-                        for title, parent_asin in df[
+                        for title, parent_asin in batch_df[
                             ["title", "parent_asin"]
                         ].iter_rows()
                     ],
-                    vectors=vectors,
+                    vectors=embedding_vectors,
                 ),
             )
-            logger.info(f"Generated {len(chunks)} chunks and upserted into vectordb")
+            logger.info(
+                f"Generated {len(text_chunks)} chunks and upserted into vectordb."
+            )
         except Exception as e:
-            logger.exception(f"failed to upsert: {e}")
+            logger.exception(f"Failed to upsert: {e}")
             raise
 
 
 def parse_arguments():
+    """
+    Parse command-line arguments for configuring dataset ingestion.
+
+    Returns:
+        args: Parsed command-line arguments.
+    """
     parser = argparse.ArgumentParser(description="Ingest dataset into Qdrant vectordb.")
 
     parser.add_argument(
         "--qdrant-url",
-        type=int,
+        type=str,
         default=os.environ.get(
             "QDRANT_URL",
             "https://a15c0e2e-c3d5-4404-add5-4042e47fbb25.europe-west3-0.gcp.cloud.qdrant.io:6333",
@@ -104,7 +120,7 @@ if __name__ == "__main__":
     )
 
     ingest_dataset(
-        dataset_file=Path("data/Product_Information_Dataset.csv"),
+        dataset_file=Path("data/product_information.parquet"),
         client=vectordb_client,
         embedding_dimension=args.embedding_dimension,
     )
