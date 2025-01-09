@@ -21,4 +21,6 @@ COPY . /app
 
 RUN uv sync --frozen
 
+RUN uv run scripts/create_sqlite_database.py
+
 CMD ["uv", "run", "fastapi", "dev", "src/main.py", "--host", "0.0.0.0"]
