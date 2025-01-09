@@ -3,8 +3,8 @@ from copy import deepcopy
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 
 import src.models as models
 from src.llm import handle_user_chat
@@ -13,15 +13,7 @@ from src.utils import DirectReturnException, create_logger
 logger = create_logger(logger_name="main", log_file="api.log", log_level="info")
 
 app = FastAPI()
-
-app.mount("/static", StaticFiles(directory="static"), name="static")
-
-# Create a route to serve the HTML file
-@app.get("/ui", response_class=HTMLResponse)
-async def read_html(request: Request):
-    with open("static/index.html", "r") as file:
-        html_content = file.read()
-    return HTMLResponse(content=html_content, status_code=200)
+templates = Jinja2Templates(directory="templates")
 
 origins = [
     "*"
@@ -91,6 +83,24 @@ async def create_chat(thread: models.Thread) -> models.Thread:
         raise HTTPException(
             status_code=500, detail=f"Error generating response for chat: {str(thread)}"
         )
+
+@app.get("/chat-ui", response_class=HTMLResponse)
+async def chat_ui(request: Request):
+    return templates.TemplateResponse("chat.html", {"request": request, "messages": []})
+
+@app.post("/chat-ui", response_class=HTMLResponse)
+async def chat_ui_post(request: Request):
+    form_data = await request.form()
+    user_message = form_data.get("message")
+    if not user_message:
+        raise HTTPException(status_code=400, detail="Message is required")
+
+    thread = models.Thread(
+        messages=[models.Message(role="user", content=user_message)]
+    )
+    response = await create_chat(thread)
+    return templates.TemplateResponse("chat.html", {"request": request, "messages": response.messages})
+
 
 # Log that the app is starting
 logger.info("Starting the application")
