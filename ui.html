@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Interface</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .chat-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .message {
+            margin: 10px 0;
+            max-width: 80%;
+            padding: 10px 15px;
+            border-radius: 15px;
+            line-height: 1.4;
+        }
+
+        .user-message {
+            background-color: #007bff;
+            color: white;
+            margin-left: auto;
+            border-bottom-right-radius: 5px;
+        }
+
+        .assistant-message {
+            background-color: #e9ecef;
+            color: black;
+            margin-right: auto;
+            border-bottom-left-radius: 5px;
+        }
+
+        /* Markdown Styles */
+        .message pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        .user-message pre {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .message code {
+            font-family: 'Courier New', Courier, monospace;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .user-message code {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .assistant-message code {
+            background-color: #e9ecef;
+        }
+
+        .message p {
+            margin: 8px 0;
+        }
+
+        .message ul, .message ol {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .message blockquote {
+            border-left: 3px solid #dee2e6;
+            margin: 8px 0;
+            padding-left: 10px;
+            color: #6c757d;
+        }
+
+        .input-container {
+            padding: 20px;
+            border-top: 1px solid #dee2e6;
+            display: flex;
+            gap: 10px;
+        }
+
+        #messageInput {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 10px;
+            color: #666;
+        }
+
+        .controls {
+            padding: 10px 20px;
+            text-align: right;
+        }
+
+        #clearChat {
+            background-color: #dc3545;
+        }
+
+        #clearChat:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="controls">
+            <button id="clearChat">Clear Chat</button>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="loading" id="loading">Assistant is typing...</div>
+        <div class="input-container">
+            <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off">
+            <button id="sendButton">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://20.121.120.6:3000/chat';
+        let currentThread = {
+            id: crypto.randomUUID(),
+            messages: [],
+            user_id: null
+        };
+
+        // Configure marked options
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            headerIds: false
+        });
+
+        // DOM Elements
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const chatMessages = document.getElementById('chatMessages');
+        const loadingIndicator = document.getElementById('loading');
+        const clearChatButton = document.getElementById('clearChat');
+
+        // Load existing thread from localStorage if it exists
+        const savedThread = localStorage.getItem('chatThread');
+        if (savedThread) {
+            currentThread = JSON.parse(savedThread);
+            displayMessages(currentThread.messages);
+        }
+
+        async function sendMessage() {
+            const content = messageInput.value.trim();
+            if (!content) return;
+
+            // Clear input
+            messageInput.value = '';
+
+            // Add user message to thread
+            currentThread.messages.push({
+                role: 'user',
+                content: content
+            });
+
+            // Display user message immediately
+            displayMessages(currentThread.messages);
+
+            // Show loading indicator
+            loadingIndicator.style.display = 'block';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(currentThread)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                // Update thread with response
+                currentThread = await response.json();
+                
+                // Save to localStorage
+                localStorage.setItem('chatThread', JSON.stringify(currentThread));
+
+                // Display updated messages
+                displayMessages(currentThread.messages);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to send message. Please try again.');
+            } finally {
+                loadingIndicator.style.display = 'none';
+            }
+        }
+
+        function displayMessages(messages) {
+            chatMessages.innerHTML = messages.map(message => {
+                const renderedContent = marked.parse(message.content);
+                return `
+                    <div class="message ${message.role}-message">
+                        ${renderedContent}
+                    </div>
+                `;
+            }).join('');
+            
+            // Scroll to bottom
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function clearChat() {
+            currentThread = {
+                id: crypto.randomUUID(),
+                messages: [],
+                user_id: null
+            };
+            localStorage.removeItem('chatThread');
+            displayMessages([]);
+        }
+
+        // Event Listeners
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        clearChatButton.addEventListener('click', clearChat);
+    </script>
+</body>
+</html>
