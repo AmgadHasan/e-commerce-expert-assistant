@@ -10,7 +10,7 @@ import sqlite3
 from contextlib import closing
 
 
-def query_product_database(sql_query: str, db_url: str = "data/products_information_old.db"):
+def query_product_database(sql_query: str, db_url: str = "data/products_information.db"):
     with closing(sqlite3.connect(f'file:{db_url}?mode=ro', uri=True)) as connection:
         connection.row_factory = lambda cursor, row: {col[0]: row[i] for i, col in enumerate(cursor.description)}
         with closing(connection.cursor()) as cursor:
