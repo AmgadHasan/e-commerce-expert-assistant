@@ -40,7 +40,10 @@ def handle_function_calls(
             print(f"Function arguments: {function_args}")
 
             function_to_call = function_map[function_name]
-            function_response = function_to_call(**function_args)
+            try:
+                function_response = function_to_call(**function_args)
+            except Exception as e:
+                function_response = str(e)
 
             messages.append(
                 {

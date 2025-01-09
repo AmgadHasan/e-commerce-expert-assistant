@@ -13,5 +13,6 @@ Includes quick data exploration, architecture design and model and framework sel
 5. As a developer I want to host the chatbot on a cloud-based interface for interactive testing,5.1 Containerize the backend app,1,3,1,Create docker images to deploy easily
 ,5.1 Hosting backend code,1,3,2,Host the backend server as REST API endpoints
 6. As a user I want a simple interface to interact with the chatbot,6.1 Basic UI implementation,2,4,1,User-friendly chat interface
-7. As a developer I want to compare different models for optimal performance,7.1 Model comparison testing,2,4,,"Testing different LLMs for accuracy, cost and latency"
-,7.2 Cost-benefit analysis,2,4,,Documenting trade-offs
+7. As a developer I want to compare different models for optimal performance,7.1 Model comparison testing,2,4,1,"Testing different LLMs for accuracy, cost and latency"
+,7.2 Cost-benefit analysis,2,4,1,Documenting trade-offs
+[final] Clean up & documentation,,1,1,,"Prepare project for delivery, double check docs"

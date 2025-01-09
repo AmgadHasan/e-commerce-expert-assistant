@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 # Load dataset with Polars
 DATASET_PATH = "data/order_data.parquet"
 
+
 # Define data models for Product_Category and Order_Priorirty fields to allow only valid values
 class ProductCategory(str, Enum):
     home_furniture = "Home & Furniture"
@@ -24,9 +25,9 @@ class OrderPriority(str, Enum):
     low = "Low"
 
 
+irrelevant_cols = ["Gender", "Device_Type", "Customer_Login_type", "Profit"]
 df = pl.read_parquet(DATASET_PATH)
 # These columns aren't needed by the user.
-df = df.drop(["Gender", "Device_Type", "Customer_Login_type", "Profit"])
 df = df.fill_null("")
 
 # Initialize FastAPI app
@@ -38,14 +39,16 @@ app = FastAPI(
 @app.get("/data", response_class=JSONResponse)
 def get_all_data() -> list[dict]:
     """Retrieve all records in the dataset."""
-    data = df.to_dicts()
+    data = df.drop(irrelevant_cols).to_dicts()
     return data
 
 
 @app.get("/data/customer/{customer_id}")
 def get_customer_data(customer_id: int) -> list[dict]:
     """Retrieve all orders for a specific Customer ID."""
-    filtered_data = df.filter(pl.col("Customer_Id") == customer_id)
+    filtered_data = df.drop(irrelevant_cols).filter(
+        pl.col("Customer_Id") == customer_id
+    )
     if filtered_data.is_empty():
         raise HTTPException(
             status_code=404, detail=f"No data found for Customer ID {customer_id}"
@@ -56,7 +59,9 @@ def get_customer_data(customer_id: int) -> list[dict]:
 @app.get("/data/product-category/{category}")
 def get_product_category_data(category: ProductCategory) -> list[dict]:
     """Retrieve all orders for a specific Product Category."""
-    filtered_data = df.filter(pl.col("Product_Category") == category.value)
+    filtered_data = df.drop(irrelevant_cols).filter(
+        pl.col("Product_Category") == category.value
+    )
     if filtered_data.is_empty():
         raise HTTPException(
             status_code=404,
@@ -80,7 +85,9 @@ def get_orders_by_priority(
     - sort_descendingly: Whether to sort in descending order.
     - limit: Maximum number of records to return.
     """
-    filtered_data = df.filter(pl.col("Order_Priority") == priority)
+    filtered_data = df.drop(irrelevant_cols).filter(
+        pl.col("Order_Priority") == priority
+    )
     if filtered_data.is_empty():
         raise HTTPException(
             status_code=404,
@@ -98,7 +105,9 @@ def get_orders_by_priority(
 @app.get("/data/total-sales-by-category")
 def get_total_sales_by_category() -> list[dict]:
     """Calculate total sales by Product Category."""
-    sales_summary = df.group_by("Product_Category").agg(pl.col("Sales").sum())
+    sales_summary = (
+        df.drop(irrelevant_cols).group_by("Product_Category").agg(pl.col("Sales").sum())
+    )
     return sales_summary.to_dicts()
 
 
