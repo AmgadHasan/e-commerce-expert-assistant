@@ -42,6 +42,8 @@ def handle_function_calls(
             function_to_call = function_map[function_name]
             try:
                 function_response = function_to_call(**function_args)
+            except DirectReturnException:
+                raise
             except Exception as e:
                 function_response = str(e)
 
