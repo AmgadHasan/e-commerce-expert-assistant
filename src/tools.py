@@ -56,34 +56,11 @@ order_dataset_tools = [
         "type": "function",
         "function": {
             "name": "get_shipping_cost_summary",
-            "description": "Retrieve the average, minimum, and maximum shipping cost.",
+            "description": 'Retrieve the average, minimum, and maximum shipping cost.\n\n Returns a json objet with keys  ["average_shipping_cost","min_shipping_cost","max_shipping_cost"]',
             "parameters": {
                 "type": "object",
                 "properties": {},
                 "required": [],
-                "additionalProperties": False,
-            },
-            "returns": {
-                "type": "object",
-                "properties": {
-                    "average_shipping_cost": {
-                        "type": "number",
-                        "description": "The average shipping cost",
-                    },
-                    "min_shipping_cost": {
-                        "type": "number",
-                        "description": "The minimum shipping cost",
-                    },
-                    "max_shipping_cost": {
-                        "type": "number",
-                        "description": "The maximum shipping cost",
-                    },
-                },
-                "required": [
-                    "average_shipping_cost",
-                    "min_shipping_cost",
-                    "max_shipping_cost",
-                ],
                 "additionalProperties": False,
             },
         },
