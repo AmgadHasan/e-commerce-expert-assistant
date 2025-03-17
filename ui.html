@@ -52,7 +52,6 @@
             border-bottom-left-radius: 5px;
         }
 
-        /* Markdown Styles */
         .message pre {
             background-color: #f8f9fa;
             padding: 10px;
@@ -142,10 +141,29 @@
         #clearChat:hover {
             background-color: #c82333;
         }
+
+        .api-container {
+            margin: 10px 0;
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        #apiInput {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <div class="chat-container">
+        <div class="api-container">
+            <input type="text" id="apiInput" placeholder="Enter API URL" value="http://57.154.240.72/chat">
+        </div>
         <div class="controls">
             <button id="clearChat">Clear Chat</button>
         </div>
@@ -158,28 +176,25 @@
     </div>
 
     <script>
-        const API_URL = 'http://20.121.120.6:3000/chat';
         let currentThread = {
             id: crypto.randomUUID(),
             messages: [],
             user_id: null
         };
 
-        // Configure marked options
         marked.setOptions({
             breaks: true,
             gfm: true,
             headerIds: false
         });
 
-        // DOM Elements
+        const apiInput = document.getElementById('apiInput');
         const messageInput = document.getElementById('messageInput');
         const sendButton = document.getElementById('sendButton');
         const chatMessages = document.getElementById('chatMessages');
         const loadingIndicator = document.getElementById('loading');
         const clearChatButton = document.getElementById('clearChat');
 
-        // Load existing thread from localStorage if it exists
         const savedThread = localStorage.getItem('chatThread');
         if (savedThread) {
             currentThread = JSON.parse(savedThread);
@@ -190,27 +205,23 @@
             const content = messageInput.value.trim();
             if (!content) return;
 
-            // Clear input
+            const apiUrl = apiInput.value.trim();
+            if (!apiUrl) {
+                alert('Please provide an API URL.');
+                return;
+            }
+
             messageInput.value = '';
 
-            // Add user message to thread
-            currentThread.messages.push({
-                role: 'user',
-                content: content
-            });
-
-            // Display user message immediately
+            currentThread.messages.push({ role: 'user', content: content });
             displayMessages(currentThread.messages);
 
-            // Show loading indicator
             loadingIndicator.style.display = 'block';
 
             try {
-                const response = await fetch(API_URL, {
+                const response = await fetch(apiUrl, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(currentThread)
                 });
 
@@ -218,13 +229,8 @@
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                // Update thread with response
                 currentThread = await response.json();
-                
-                // Save to localStorage
                 localStorage.setItem('chatThread', JSON.stringify(currentThread));
-
-                // Display updated messages
                 displayMessages(currentThread.messages);
             } catch (error) {
                 console.error('Error:', error);
@@ -237,33 +243,20 @@
         function displayMessages(messages) {
             chatMessages.innerHTML = messages.map(message => {
                 const renderedContent = marked.parse(message.content);
-                return `
-                    <div class="message ${message.role}-message">
-                        ${renderedContent}
-                    </div>
-                `;
+                return `<div class="message ${message.role}-message">${renderedContent}</div>`;
             }).join('');
-            
-            // Scroll to bottom
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
         function clearChat() {
-            currentThread = {
-                id: crypto.randomUUID(),
-                messages: [],
-                user_id: null
-            };
+            currentThread = { id: crypto.randomUUID(), messages: [], user_id: null };
             localStorage.removeItem('chatThread');
             displayMessages([]);
         }
 
-        // Event Listeners
         sendButton.addEventListener('click', sendMessage);
         messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
+            if (e.key === 'Enter') sendMessage();
         });
         clearChatButton.addEventListener('click', clearChat);
     </script>
