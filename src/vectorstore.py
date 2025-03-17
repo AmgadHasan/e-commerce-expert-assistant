@@ -5,7 +5,7 @@ from qdrant_client import QdrantClient
 from src.emb import embed_query
 from src.utils import create_logger, log_execution_time, query_product_database
 
-COLLECTION_NAME = "products_information"
+COLLECTION_NAME = os.environ.get("QDRANT_COLLECTION_NAME", "products_information")
 
 logger = create_logger(logger_name="vectorstore", log_file="api.log", log_level="info")
 

@@ -11,7 +11,7 @@ from qdrant_client.models import Distance, VectorParams
 from src.utils import create_logger, log_execution_time
 from src.emb import embed_chunks
 
-COLLECTION_NAME = "products_information_02"
+COLLECTION_NAME = os.environ.get("QDRANT_COLLECTION_NAME", "products_information")
 
 
 logger = create_logger(logger_name="script", log_file="api.log", log_level="info")
