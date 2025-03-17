@@ -3,20 +3,22 @@ from copy import deepcopy
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-
+import gradio as gr
 import src.models as models
 from src.llm import handle_user_chat
 from src.utils import DirectReturnException, create_logger
+import uuid
+import time
 
 logger = create_logger(logger_name="main", log_file="api.log", log_level="info")
 
-app = FastAPI()
+fastapi_app = FastAPI()
 
 # CORS settings to allow all origins
 origins = ["*"]
 
 
-app.add_middleware(
+fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
@@ -29,8 +31,7 @@ app.add_middleware(
     ],
 )
 
-
-@app.get("/")
+@fastapi_app.get("/")
 async def root() -> dict:
     """
     Root endpoint that returns a welcome message.
@@ -43,7 +44,7 @@ async def root() -> dict:
     return {"message": "Hello World"}
 
 
-@app.post("/chat")
+@fastapi_app.post("/chat")
 async def create_chat(thread: models.Thread) -> models.Thread:
     """
     Handle chat interactions by processing the conversation thread.
@@ -70,7 +71,7 @@ async def create_chat(thread: models.Thread) -> models.Thread:
         logger.info("Assistant response generated: %s", assistant_response)
         return response
     except DirectReturnException as direct_return_response:
-        response.messages.append(direct_return_response.message)
+        response.messages.append(models.Message(**direct_return_response.message))
         logger.info(
             "Direct return response appended: %s", direct_return_response.message
         )
@@ -82,6 +83,42 @@ async def create_chat(thread: models.Thread) -> models.Thread:
             status_code=500, detail=f"Error generating response for chat: {str(thread)}"
         )
 
+def add_gradio_ui(fastapi_app: FastAPI) -> FastAPI:
 
-# Log application startup
+    async def gradio_chat_interface(message, history, request: gr.Request):
+        """
+        The Gradio interface function to interact with the FastAPI `/chat` endpoint.
+
+        Args:
+            message (str): Input message from the user.
+            history (list[dict]): 
+
+        Returns:
+            str: Assistant's response from the FastAPI `/chat` endpoint.
+        """
+        try:
+            thread_id = request.session_hash
+            # Existing thread or initialize a new one
+            user_input = message
+            thread_id = str(uuid.uuid4())
+            thread = models.Thread(messages= [models.Message(**{"role": "user", "content": user_input})], thread_id=thread_id)
+
+
+            # Send the thread to the `/chat` endpoint
+            print(message, history)
+            response = await create_chat(thread=thread)
+            assistant_message = response.messages[-1].content  # Fetch assistant response
+            print(f"assistant_message = {assistant_message}")
+
+            return assistant_message
+        except Exception as e:
+            return f"Error: {str(e)}", thread_id
+
+    chat_ui = gr.ChatInterface(gradio_chat_interface, type="messages", autofocus=False)
+
+    app = gr.mount_gradio_app(fastapi_app, chat_ui, path="/ui")
+
+    return app
+
+app = add_gradio_ui(fastapi_app=fastapi_app)
 logger.info("Starting the application")
