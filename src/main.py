@@ -1,9 +1,10 @@
 import traceback
 from copy import deepcopy
+import os
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 import src.models as models
@@ -85,28 +86,50 @@ async def create_chat(thread: models.Thread) -> models.Thread:
 @app.get("/chat-ui", response_class=HTMLResponse)
 async def chat_ui(request: Request) -> HTMLResponse:
     """
-    Render the chat UI in HTML format.
+    Render the chat UI in HTML format, passing the API URL.
 
     Args:
-        request (Request): The request object carrying HTTP metadata.
+        request (Request): The request object.
 
     Returns:
-        HTMLResponse: The rendered HTML template for chat interface.
+        HTMLResponse:  Rendered HTML template.
     """
-    return templates.TemplateResponse("chat.html", {"request": request, "messages": []})
+    api_url = os.environ.get("API_URL", "/chat")  # Default to /chat if not set
+    return templates.TemplateResponse("chat.html", {"request": request, "api_url": api_url})
 
-@app.post("/chat-ui", response_class=HTMLResponse)
-async def chat_ui_post(request: Request) -> HTMLResponse:
-    form_data = await request.form()
-    user_message = form_data.get("message")
-    if not user_message:
-        raise HTTPException(status_code=400, detail="Message is required")
 
-    thread = models.Thread(
-        messages=[models.Message(role="user", content=user_message)]
-    )
-    response = await create_chat(thread)
-    return templates.TemplateResponse("chat.html", {"request": request, "messages": response.messages})
+@app.post("/chat-ui", response_class=JSONResponse)
+async def chat_ui_post(request: Request) -> JSONResponse:
+    """
+    Handles POST requests from the chat UI, processes the message,
+    and returns the updated messages as JSON.  This avoids re-rendering
+    the entire page, making the chat more responsive.
+
+    Args:
+        request (Request): The request object.
+
+    Returns:
+        JSONResponse:  The updated thread, including the assistant's response.
+    """
+    try:
+        form_data = await request.form()
+        user_message = form_data.get("message")
+        if not user_message:
+            raise HTTPException(status_code=400, detail="Message is required")
+
+        thread = models.Thread(
+            messages=[models.Message(role="user", content=user_message)]
+        )
+        response_thread = await create_chat(thread)
+        return response_thread # Return the full thread
+
+    except HTTPException as http_exc:
+        # Re-raise HTTP exceptions to be handled by FastAPI
+        raise http_exc
+    except Exception as e:
+        logger.error("Error in chat_ui_post: %s", traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Log application startup
 logger.info("Starting the application")

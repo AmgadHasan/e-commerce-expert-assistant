@@ -6,6 +6,7 @@
     <title>Chat Interface</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
     <style>
+        /* ... (rest of your CSS, unchanged) ... */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -149,7 +150,13 @@
         <div class="controls">
             <button id="clearChat">Clear Chat</button>
         </div>
-        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-messages" id="chatMessages">
+            {% for message in messages %}
+                <div class="message {{ message.role }}-message">
+                    {{ marked(message.content) | safe }}
+                </div>
+            {% endfor %}
+        </div>
         <div class="loading" id="loading">Assistant is typing...</div>
         <div class="input-container">
             <input type="text" id="messageInput" placeholder="Type your message..." autocomplete="off">
@@ -158,13 +165,8 @@
     </div>
 
     <script>
-        const API_URL = 'http://20.121.120.6:3000/chat';
-        let currentThread = {
-            id: crypto.randomUUID(),
-            messages: [],
-            user_id: null
-        };
-
+        // Use the Jinja2 variable for the API URL
+        const API_URL = "{{ api_url }}";
         // Configure marked options
         marked.setOptions({
             breaks: true,
@@ -179,53 +181,45 @@
         const loadingIndicator = document.getElementById('loading');
         const clearChatButton = document.getElementById('clearChat');
 
-        // Load existing thread from localStorage if it exists
+        // Load existing thread from localStorage if it exists and display
+        let currentThread = { id: crypto.randomUUID(), messages: [], user_id: null };
         const savedThread = localStorage.getItem('chatThread');
         if (savedThread) {
             currentThread = JSON.parse(savedThread);
-            displayMessages(currentThread.messages);
+            displayMessages(currentThread.messages); // Display on load
         }
+
 
         async function sendMessage() {
             const content = messageInput.value.trim();
             if (!content) return;
 
-            // Clear input
-            messageInput.value = '';
+            messageInput.value = ''; // Clear input
 
-            // Add user message to thread
-            currentThread.messages.push({
-                role: 'user',
-                content: content
-            });
+            // Append user message *before* sending to the server
+            appendMessage({ role: 'user', content: content });
+            currentThread.messages.push({ role: 'user', content: content });
 
-            // Display user message immediately
-            displayMessages(currentThread.messages);
-
-            // Show loading indicator
             loadingIndicator.style.display = 'block';
 
             try {
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/x-www-form-urlencoded', // Correct for form data
                     },
-                    body: JSON.stringify(currentThread)
+                    body: new URLSearchParams({ message: content }), // Send as form data
                 });
 
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
 
-                // Update thread with response
-                currentThread = await response.json();
-                
-                // Save to localStorage
-                localStorage.setItem('chatThread', JSON.stringify(currentThread));
+                const updatedThread = await response.json();
+                currentThread.messages = updatedThread.messages; // Update messages
+                localStorage.setItem('chatThread', JSON.stringify(currentThread)); // Save
+                displayMessages(currentThread.messages); // Re-display all
 
-                // Display updated messages
-                displayMessages(currentThread.messages);
             } catch (error) {
                 console.error('Error:', error);
                 alert('Failed to send message. Please try again.');
@@ -234,28 +228,25 @@
             }
         }
 
-        function displayMessages(messages) {
-            chatMessages.innerHTML = messages.map(message => {
-                const renderedContent = marked.parse(message.content);
-                return `
-                    <div class="message ${message.role}-message">
-                        ${renderedContent}
-                    </div>
-                `;
-            }).join('');
-            
-            // Scroll to bottom
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+        function appendMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', `${message.role}-message`);
+            messageElement.innerHTML = marked.parse(message.content);
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
         }
 
+
+        function displayMessages(messages) {
+            chatMessages.innerHTML = ''; // Clear existing messages
+            messages.forEach(message => appendMessage(message));
+        }
+
+
         function clearChat() {
-            currentThread = {
-                id: crypto.randomUUID(),
-                messages: [],
-                user_id: null
-            };
+            currentThread = { id: crypto.randomUUID(), messages: [], user_id: null };
             localStorage.removeItem('chatThread');
-            displayMessages([]);
+            chatMessages.innerHTML = ''; // Clear the displayed chat
         }
 
         // Event Listeners
@@ -266,6 +257,7 @@
             }
         });
         clearChatButton.addEventListener('click', clearChat);
+
     </script>
 </body>
 </html>
