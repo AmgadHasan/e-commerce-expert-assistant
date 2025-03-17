@@ -62,7 +62,7 @@ def retrieve_relevant_products(query: str) -> list[dict]:
         ## Begin
         import time
 
-        time.sleep(62)
+        time.sleep(10)
         retrieved_chunks = retrieved_chunks[:3]
         ## End
 

@@ -4,8 +4,8 @@ from src.utils import DirectReturnException, query_product_database
 from src.vectorstore import retrieve_relevant_products
 
 
-def get_customer_id():
-    data = {"role": "assistant", "content": "Please provider your Customer ID"}
+def get_customer_id(message: str):
+    data = {"role": "assistant", "content": f"Please provider your Customer ID: {message}"}
     raise DirectReturnException(message=data)
     
 
@@ -199,13 +199,18 @@ order_dataset_tools = [
         "type": "function",
         "function": {
             "name": "get_customer_id",
-            "description": 'Obtains the Customer ID by asking the user "Please provide your Customer ID"',
+            "description": 'Obtains the Customer ID by asking the user "Please provide your Customer ID" and displaying a message, which is provided as an argument',
             "parameters": {
                 "type": "object",
-                "properties": {},
-                "required": [],
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": "A message to be shown to the user. Should be concise and to the point.",
+                    },
+                },
+                "required": ["message"],
                 "additionalProperties": False,
-            },
+            }
         },
     },
 ]
