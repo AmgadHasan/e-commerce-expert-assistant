@@ -4,6 +4,7 @@ from pathlib import Path
 
 import openai
 import polars as pl
+from tqdm import tqdm
 from qdrant_client import QdrantClient, models
 from qdrant_client.models import Distance, VectorParams
 
@@ -18,7 +19,7 @@ logger = create_logger(logger_name="script", log_file="api.log", log_level="info
 
 @log_execution_time(logger=logger)
 def ingest_dataset(
-    dataset_file: Path, client: QdrantClient, embedding_dimension: int
+    dataset_file: Path, client: QdrantClient, embedding_dimension: int, batch_size: int
 ) -> None:
     """
     Ingest a dataset parquet file into Qdrant by creating a collection, embedding text into vectors,
@@ -41,8 +42,10 @@ def ingest_dataset(
 
     # Read data from the parquet and prepare for processing
     dataset = pl.read_parquet(dataset_file).with_row_index("id")
-    for i in range(0, dataset.shape[0], 64):
-        batch_df = dataset[i : i + 64]
+    total_batches = range(0, dataset.shape[0], batch_size)
+
+    for i in tqdm(total_batches, desc="Ingesting dataset"):
+        batch_df = dataset[i : i + batch_size]
         text_chunks = (batch_df["features"] + batch_df["title"]).to_list()
         embedding_vectors = embed_chunks(chunks=text_chunks)
 
@@ -111,6 +114,7 @@ def parse_arguments():
 
 if __name__ == "__main__":
     args = parse_arguments()
+    batch_size = int(os.environ.get("EMBEDDING_BATCH_SIZE", 16))
 
     vectordb_client = QdrantClient(
         url=args.qdrant_url, api_key=os.environ.get("QDRANT_API_KEY")
@@ -123,4 +127,5 @@ if __name__ == "__main__":
         dataset_file=Path("data/product_information.parquet"),
         client=vectordb_client,
         embedding_dimension=args.embedding_dimension,
+        batch_size=batch_size,
     )
